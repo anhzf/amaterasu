@@ -1,6 +1,4 @@
-import { ValidationRule } from 'quasar';
-
-export const tryJSONParse: ValidationRule = (str: string) => {
+export const tryJSONParse = (str: string) => {
   try {
     return JSON.parse(str) && true;
   } catch (err) {

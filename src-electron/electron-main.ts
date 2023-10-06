@@ -30,7 +30,7 @@ function createWindow() {
 
   if (process.env.DEBUGGING) {
     // if on DEV or Production with debug enabled
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
   } else {
     // we're on production; no access to devtools pls
     mainWindow.webContents.on('devtools-opened', () => {
@@ -44,14 +44,6 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ipcMain.handle('listenDocuments', (ev, ...args) => {
-    setInterval(() => {
-      if (mainWindow) {
-        mainWindow.webContents.send('listenDocuments', 'from main', ...args);
-      }
-    }, 3000);
-  });
-
   ipcMain.on('log', (ev, ...args) => {
     console.log(...args);
   });

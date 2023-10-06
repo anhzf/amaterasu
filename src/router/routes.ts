@@ -10,7 +10,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('pages/IndexPage.vue'),
       },
       {
-        path: ':projectId/collection/:collectionPath',
+        path: 'project/:projectId/collection/:collectionPath',
         name: 'collection',
         component: () => import('pages/CollectionPage.vue'),
       },

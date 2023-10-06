@@ -1,12 +1,11 @@
 import { FirestoreAdmin, GApis } from 'app/src-electron/interfaces';
 import { DEFAULT_PROJECT_ID, firestore } from 'app/src-electron/lib/firebase-services';
 import { toFirestoreDataTypeSchema } from 'app/src-electron/schemas';
-import { mainLog } from 'app/src-electron/utils/ipcMain';
 import {
   CollectionReferenceSchema, DataSchema, DocumentReferenceSchema,
 } from 'app/src-shared/schemas';
 import { IpcRendererEvent, ipcRenderer } from 'electron';
-import { FieldPath } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue } from 'firebase-admin/firestore';
 import {
   ValiError,
   flatten,
@@ -58,20 +57,6 @@ const listDocuments: GApis['firestore']['document']['list'] = async (path, offse
   }
 };
 
-const listenDocuments: GApis['firestore']['document']['listenList'] = (path, offset, projectId = DEFAULT_PROJECT_ID, callback = () => { /*  */ }) => {
-  ipcRenderer.invoke('listenDocuments', 'listenDocuments', { path, offset, projectId });
-
-  const cb = (ev: IpcRendererEvent, data: any) => {
-    callback?.(data);
-  };
-
-  ipcRenderer.on('listenDocuments', cb);
-
-  return () => {
-    ipcRenderer.removeListener('listenDocuments', cb);
-  };
-};
-
 export const documentCreate: FirestoreAdmin['document']['create'] = async (projectId, path, data) => {
   const db = firestore(projectId);
 
@@ -101,7 +86,18 @@ export const documentUpdate: FirestoreAdmin['document']['update'] = async (proje
   await docRef.update(...transformedUpdateValues);
 };
 
+export const documentDeletes: FirestoreAdmin['document']['deletes'] = async (projectId, ...paths) => {
+  const db = firestore(projectId);
+
+  const docRefs = paths.map((path) => db.doc(path));
+
+  const batch = db.batch();
+
+  docRefs.forEach((docRef) => batch.delete(docRef));
+
+  await batch.commit();
+};
+
 export const document = {
   list: listDocuments,
-  listenList: listenDocuments,
 };

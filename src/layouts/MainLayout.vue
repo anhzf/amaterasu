@@ -2,7 +2,7 @@
 import { useAsyncState } from '@vueuse/core';
 import { CollectionReferenceSchema } from 'app/src-shared/schemas';
 import { Output } from 'valibot';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 
 interface ProjectCollectionState {
@@ -73,8 +73,19 @@ onMounted(() => {
     >
       <q-scroll-area class="col">
         <q-list>
-          <q-item-label header>
-            Projects
+          <q-item-label
+            header
+            class="row items-center gap-xs"
+          >
+            <span>Projects</span>
+            <q-btn
+              icon="sym_o_refresh"
+              flat
+              round
+              size="sm"
+              :disable="isLoading"
+              @click="getProjects()"
+            />
           </q-item-label>
 
           <template v-if="isLoading">

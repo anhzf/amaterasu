@@ -1,12 +1,18 @@
 import { getActiveApp } from 'app/src-electron/lib/firebase-services';
-import { GeoPoint, Timestamp, initializeFirestore } from 'firebase-admin/firestore';
+import {
+  FieldValue, GeoPoint, Timestamp, initializeFirestore,
+} from 'firebase-admin/firestore';
 import {
   BaseSchema,
   Input, Output,
-  array, boolean, nullType, number,
+  array, boolean,
+  coerce, literal,
+  nullType, number,
   object,
   record, recursive, string,
-  transform, union, coerce, literal,
+  transform,
+  undefinedType,
+  union,
 } from 'valibot';
 
 export const toFirestoreReferenceSchema = transform(
@@ -48,6 +54,7 @@ type TInputDataTypeSchema = Input<typeof toFirestoreSpecialDataSchema>
   | number
   | boolean
   | null
+  | undefined
   | TInputDataTypeSchema[]
   | { [k: string]: TInputDataTypeSchema };
 
@@ -56,6 +63,7 @@ type TOutputDataTypeSchema = Output<typeof toFirestoreSpecialDataSchema>
   | number
   | boolean
   | null
+  | FieldValue
   | TOutputDataTypeSchema[]
   | { [k: string]: TOutputDataTypeSchema };
 
@@ -66,6 +74,7 @@ export const toFirestoreDataTypeSchema: BaseSchema<TInputDataTypeSchema, TOutput
   number(),
   boolean(),
   nullType(),
+  transform(undefinedType(), () => FieldValue.delete()),
   record(toFirestoreDataTypeSchema),
 ]));
 

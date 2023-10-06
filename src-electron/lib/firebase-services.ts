@@ -7,7 +7,7 @@ import { initializeFirestore } from 'firebase-admin/firestore';
 
 let activeApp: App;
 
-const useApp = (projectId?: string) => {
+export const useApp = (projectId?: string) => {
   const app = getApps().find((el) => el.options.projectId === projectId);
 
   const usedApp = (() => {

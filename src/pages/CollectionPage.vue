@@ -2,7 +2,7 @@
 import { useAsyncState } from '@vueuse/core';
 import { ItemOfArray } from 'app/src-shared/utils/type';
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
-import { QTableColumn } from 'quasar';
+import { Dialog, QTableColumn } from 'quasar';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { tryJSONParse } from 'src/input-rules';
@@ -58,6 +58,13 @@ const cols = computed<QTableColumn<ItemOfArray<typeof data.value>>[]>(() => [
     align: 'left',
     sortable: false,
   },
+  {
+    name: 'actions',
+    label: '',
+    field: 'id',
+    align: 'right',
+    sortable: false,
+  },
 ]);
 
 const selected = ref<typeof data.value>([]);
@@ -65,9 +72,11 @@ const selected = ref<typeof data.value>([]);
 const isCreateDocumentDialogOpen = ref(false);
 const createDocumentField = ref('');
 
-const onFieldEditSave = async (id: string, updates: [FieldPath, FieldValue, ...any]) => {
+const onFieldEditSave = async (id: string, updates: [FieldPath, FieldValue]) => {
   try {
     isLoading.value = true;
+
+    // if (updates[1] )
     await FirestoreAdmin.document.update(projectId.value, [collectionPath.value, id].join('/'), JSON.parse(JSON.stringify(updates)));
 
     getDocuments();
@@ -85,6 +94,96 @@ const onCreateDocumentSubmit = async () => {
 
     getDocuments();
     isCreateDocumentDialogOpen.value = false;
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const onAddColumnClick = async (row: (typeof data.value)[number]) => {
+  Dialog.create({
+    title: `Add columns to ${row.id}`,
+    persistent: true,
+    cancel: true,
+    prompt: {
+      model: '',
+      type: 'textarea',
+      filled: true,
+      rules: [tryJSONParse],
+      isValid: (v) => !!tryJSONParse(v),
+    },
+  })
+    .onOk(async (value: string) => {
+      try {
+        isLoading.value = true;
+
+        const payload = parse(FirestoreRecordSchema, JSON.parse(value));
+
+        await FirestoreAdmin.document.update(
+          projectId.value,
+          [collectionPath.value, row.id].join('/'),
+          Object.entries(payload).flat() as [FieldPath, FieldValue, ...any[]],
+        );
+
+        getDocuments();
+      } finally {
+        isLoading.value = false;
+      }
+    });
+};
+
+const onRemoveColumnClick = async (row: (typeof data.value)[number]) => {
+  Dialog.create({
+    title: `Remove columns from ${row.id}`,
+    message: 'Select columns to remove',
+    persistent: true,
+    cancel: true,
+    options: {
+      type: 'checkbox',
+      model: [],
+      items: Object.keys(row).filter((el) => !RESERVED_KEYS.includes(el))
+        .map((el) => ({
+          label: el,
+          value: el,
+        })),
+    },
+  })
+    .onOk((removedColumns: string[]) => {
+      Dialog.create({
+        title: `Are you sure to remove these columns from ${row.id}?`,
+        message: removedColumns.join(', '),
+        persistent: true,
+        cancel: true,
+      })
+        .onOk(async () => {
+          try {
+            isLoading.value = true;
+
+            const payload = removedColumns
+              .map((fieldPath) => [fieldPath, undefined])
+              .flat() as [FieldPath, FieldValue, ...any[]];
+
+            await FirestoreAdmin.document.update(
+              projectId.value,
+              [collectionPath.value, row.id].join('/'),
+              payload,
+            );
+
+            getDocuments();
+          } finally {
+            isLoading.value = false;
+          }
+        });
+    });
+};
+
+const onDeleteDocumentsClick = async () => {
+  try {
+    isLoading.value = true;
+
+    await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
+    selected.value = [];
+
+    getDocuments();
   } finally {
     isLoading.value = false;
   }
@@ -157,7 +256,7 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
             text-color="primary"
           />
           <q-btn
-            v-if="selected.length > 0"
+            v-if="selected.length === 1"
             label="Duplicate"
             icon="sym_o_content_copy"
             size="sm"
@@ -172,6 +271,7 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
             outline
             :disable="isLoading"
             text-color="negative"
+            @click="onDeleteDocumentsClick"
           />
           <q-btn
             label="Add Document"
@@ -264,6 +364,28 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
           </template>
         </q-td>
       </template>
+
+      <template #body-cell-actions="props">
+        <q-td :props="props">
+          <div class="inline-column">
+            <q-btn
+              label="Columns"
+              icon="sym_o_forms_add_on"
+              size="sm"
+              flat
+              @click="onAddColumnClick(props.row)"
+            />
+            <q-btn
+              label="Columns"
+              icon="sym_o_delete_sweep"
+              size="sm"
+              flat
+              color="negative"
+              @click="onRemoveColumnClick(props.row)"
+            />
+          </div>
+        </q-td>
+      </template>
     </q-table>
 
     <q-dialog v-model="isCreateDocumentDialogOpen">
@@ -288,9 +410,9 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
           </q-card-section>
           <q-card-actions>
             <q-btn
+              v-close-popup
               label="Cancel"
               flat
-              @click="isCreateDocumentDialogOpen = false"
             />
             <div class="col" />
             <q-btn

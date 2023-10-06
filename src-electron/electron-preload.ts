@@ -1,9 +1,10 @@
+import { mainLog } from 'app/src-electron/utils/ipcMain';
 import { contextBridge } from 'electron';
 import { google } from 'googleapis';
-import { mainLog } from 'app/src-electron/utils/ipcMain';
 import { ElectronUtils, FirestoreAdmin, GApis } from './interfaces';
-import * as firestore from './lib/firestore';
-// import { firestore as firestoreService } from './lib/firebase-services';
+import {
+  documentCreate, documentUpdate, documentDeletes, collection, document,
+} from './lib/firestore';
 
 google.options({
   auth: google.auth,
@@ -15,13 +16,17 @@ contextBridge.exposeInMainWorld('GApis', <GApis>{
   projects: {
     list: firebaseApis.projects.list.bind(firebaseApis),
   },
-  firestore,
+  firestore: {
+    collection,
+    document,
+  },
 });
 
 contextBridge.exposeInMainWorld('FirestoreAdmin', <FirestoreAdmin>{
   document: {
-    update: firestore.documentUpdate,
-    create: firestore.documentCreate,
+    update: documentUpdate,
+    create: documentCreate,
+    deletes: documentDeletes,
   },
 });
 

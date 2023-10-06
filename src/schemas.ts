@@ -1,8 +1,10 @@
 import {
-  BaseSchema, array, boolean, date, nullType, number, record, recursive, string, union,
+  BaseSchema, array, boolean, date, nullType, number, record, recursive, string,
+  undefinedType,
+  union,
 } from 'valibot';
 
-export const FirestoreRecordSchema: BaseSchema = recursive(() => record(union([
+export const FirestoreRecordSchema: BaseSchema<Record<string, any>> = recursive(() => record(union([
   date(),
   array(FirestoreRecordSchema),
   FirestoreRecordSchema,
@@ -10,4 +12,5 @@ export const FirestoreRecordSchema: BaseSchema = recursive(() => record(union([
   string(),
   number(),
   nullType(),
+  undefinedType(),
 ])));

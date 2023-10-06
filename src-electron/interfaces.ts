@@ -27,10 +27,6 @@ export interface GApis {
         }[];
         offset?: string;
       }>;
-      listenList: (path: string, offset?: string, project?: string, cb?: (data: {
-        ref: Output<typeof DocumentReferenceSchema>;
-        data: Output<typeof DataSchema>;
-      }, offset?: string) => void) => (() => void);
     };
   };
 }
@@ -42,5 +38,6 @@ export interface FirestoreAdmin {
   document: {
     create: (projectId: string, path: string, data: Output<typeof DataSchema>) => Promise<void>;
     update: (projectId: string, path: string, updates: [FieldPath, FieldValue, ...any]) => Promise<void>;
+    deletes: (projectId: string, ...paths: string[]) => Promise<void>;
   };
 }
