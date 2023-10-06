@@ -208,17 +208,24 @@ const onRemoveColumnClick = async (row: (typeof data.value)[number]) => {
     });
 };
 
-const onDeleteDocumentsClick = async () => {
-  try {
-    isLoading.value = true;
+const onDeleteDocumentsClick = () => {
+  Dialog.create({
+    title: `Are you sure to delete ${selected.value.length} documents?`,
+    message: selected.value.map((item) => item.id).join(', '),
+    persistent: true,
+    cancel: true,
+  }).onOk(async () => {
+    try {
+      isLoading.value = true;
 
-    await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
-    selected.value = [];
+      await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
 
-    getDocuments();
-  } finally {
-    isLoading.value = false;
-  }
+      selected.value = [];
+      getDocuments();
+    } finally {
+      isLoading.value = false;
+    }
+  });
 };
 
 watch(() => route.params, () => {
