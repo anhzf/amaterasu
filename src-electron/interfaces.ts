@@ -36,7 +36,7 @@ export interface FirestoreAdmin {
     listen: () => void;
   };
   document: {
-    create: (projectId: string, path: string, data: Output<typeof DataSchema>) => Promise<void>;
+    create: (projectId: string, path: string, data: Output<typeof DataSchema>[]) => Promise<void>;
     update: (projectId: string, path: string, updates: [FieldPath, FieldValue, ...any]) => Promise<void>;
     deletes: (projectId: string, ...paths: string[]) => Promise<void>;
   };

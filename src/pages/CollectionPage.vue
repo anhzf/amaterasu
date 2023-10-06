@@ -2,7 +2,7 @@
 import { useAsyncState } from '@vueuse/core';
 import { ItemOfArray } from 'app/src-shared/utils/type';
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
-import { Dialog, QTableColumn } from 'quasar';
+import { Dialog, Notify, QTableColumn } from 'quasar';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { tryJSONParse } from 'src/input-rules';
@@ -72,11 +72,41 @@ const selected = ref<typeof data.value>([]);
 const isCreateDocumentDialogOpen = ref(false);
 const createDocumentField = ref('');
 
+const onViewJSONClick = () => {
+  const model = JSON.stringify(selected.value.length === 1 ? selected.value[0] : selected.value, null, 4);
+
+  Dialog.create({
+    title: 'View JSON',
+    persistent: true,
+    cancel: 'Close',
+    ok: {
+      label: 'Copy',
+      color: 'primary',
+      icon: 'sym_o_content_copy',
+    },
+    prompt: {
+      model,
+      type: 'textarea',
+      filled: true,
+      autogrow: true,
+      readonly: true,
+    },
+    style: 'width: 100%; max-width: 75vw;',
+  })
+    .onOk(async () => {
+      await navigator.clipboard.writeText(model);
+      Notify.create({
+        message: 'Copied to clipboard',
+        color: 'positive',
+        icon: 'sym_o_check',
+      });
+    });
+};
+
 const onFieldEditSave = async (id: string, updates: [FieldPath, FieldValue]) => {
   try {
     isLoading.value = true;
 
-    // if (updates[1] )
     await FirestoreAdmin.document.update(projectId.value, [collectionPath.value, id].join('/'), JSON.parse(JSON.stringify(updates)));
 
     getDocuments();
@@ -89,11 +119,13 @@ const onCreateDocumentSubmit = async () => {
   try {
     isLoading.value = true;
 
-    const { id, ...payload } = parse(FirestoreRecordSchema, JSON.parse(createDocumentField.value));
-    await FirestoreAdmin.document.create(projectId.value, [collectionPath.value, id].join('/'), payload);
+    const raw = JSON.parse(createDocumentField.value);
+    const payload = Array.isArray(raw) ? raw.map((el) => parse(FirestoreRecordSchema, el)) : [parse(FirestoreRecordSchema, raw)];
+    await FirestoreAdmin.document.create(projectId.value, collectionPath.value, payload);
 
     getDocuments();
     isCreateDocumentDialogOpen.value = false;
+    createDocumentField.value = '';
   } finally {
     isLoading.value = false;
   }
@@ -189,8 +221,9 @@ const onDeleteDocumentsClick = async () => {
   }
 };
 
-watch([() => route.params.projectId, () => route.params.collectionPath], () => {
+watch(() => route.params, () => {
   getDocuments();
+  selected.value = [];
 });
 </script>
 
@@ -248,12 +281,13 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
         <div class="row items-center gap-xs">
           <q-btn
             v-if="selected.length > 0"
-            label="Edit as JSON"
-            icon="sym_o_edit"
+            label="View JSON"
+            icon="sym_o_data_object"
             size="sm"
             outline
             :disable="isLoading"
             text-color="primary"
+            @click="onViewJSONClick"
           />
           <q-btn
             v-if="selected.length === 1"
@@ -395,14 +429,17 @@ watch([() => route.params.projectId, () => route.params.collectionPath], () => {
             <div class="text-h5 q-my-none">
               Add a Document
             </div>
-            <p>Provide an <q-badge>id</q-badge> field to create a custom ID otherwise it will create automatically.</p>
+            <ul>
+              <li>Provide an <q-badge>id</q-badge> field to create a custom ID otherwise it will create automatically.</li>
+              <li>Use array as root to create multiple documents</li>
+            </ul>
           </q-card-section>
           <q-card-section>
             <q-input
               v-model="createDocumentField"
               type="textarea"
               filled
-              auto-focus
+              autofocus
               row="10"
               lazy-rules
               :rules="[tryJSONParse]"

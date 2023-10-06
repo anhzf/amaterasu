@@ -60,13 +60,17 @@ const listDocuments: GApis['firestore']['document']['list'] = async (path, offse
 export const documentCreate: FirestoreAdmin['document']['create'] = async (projectId, path, data) => {
   const db = firestore(projectId);
 
-  const docRef = path.split('/').filter(Boolean).length % 2 === 0
-    ? db.doc(path)
-    : db.collection(path).doc();
+  const batch = db.batch();
 
-  const parsed = parse(record(toFirestoreDataTypeSchema), data);
+  data.forEach((el) => {
+    const parsed = parse(record(toFirestoreDataTypeSchema), el);
+    const docRef = typeof parsed.id === 'string'
+      ? db.collection(path).doc(parsed.id)
+      : db.collection(path).doc();
+    batch.create(docRef, parsed);
+  });
 
-  await docRef.create(parsed);
+  await batch.commit();
 };
 
 export const documentUpdate: FirestoreAdmin['document']['update'] = async (projectId, path, updates) => {
