@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { useAsyncState } from '@vueuse/core';
+import electronConfig from 'app/src-electron/config';
 import { CollectionReferenceSchema } from 'app/src-shared/schemas';
 import CreateNewCollectionForm from 'components/CreateNewCollectionForm.vue';
 import { Output } from 'valibot';
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
+import { type firebase_v1beta1 as firebaseApis } from 'googleapis';
 
 interface ProjectCollectionState {
   isLoading: boolean;
@@ -15,12 +17,18 @@ interface ProjectCollectionState {
 
 const route = useRoute();
 
+const emulatorProject: firebaseApis.Schema$FirebaseProject = {
+  displayName: 'emulator',
+  name: 'emulator',
+  projectId: electronConfig.firebase.emulatorAppName,
+};
+
 const {
   state: projects, error, isLoading, execute: getProjects,
 } = useAsyncState(async () => {
   const result = await GApis.projects.list();
-  return (result.data.results || []);
-}, []);
+  return [...(result.data.results || []), emulatorProject];
+}, [emulatorProject]);
 
 const activeCreateNewCollectionProjectId = ref('');
 
