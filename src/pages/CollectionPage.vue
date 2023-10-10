@@ -1,13 +1,14 @@
 <script lang="ts" setup>
 import { useAsyncState } from '@vueuse/core';
 import { ItemOfArray } from 'app/src-shared/utils/type';
+import CreateNewCollectionForm from 'components/CreateNewCollectionForm.vue';
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
 import { Dialog, Notify, QTableColumn } from 'quasar';
+import { tryJSONParse } from 'src/input-rules';
+import { FirestoreRecordSchema } from 'src/schemas';
+import { parse } from 'valibot';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { tryJSONParse } from 'src/input-rules';
-import { parse } from 'valibot';
-import { FirestoreRecordSchema } from 'src/schemas';
 
 const RESERVED_KEYS = ['id', '_subcollections'];
 
@@ -68,6 +69,8 @@ const cols = computed<QTableColumn<ItemOfArray<typeof data.value>>[]>(() => [
 ]);
 
 const selected = ref<typeof data.value>([]);
+
+const activeCreateNewCollectionDocumentPath = ref('');
 
 const isCreateDocumentDialogOpen = ref(false);
 const createDocumentField = ref('');
@@ -226,6 +229,11 @@ const onDeleteDocumentsClick = () => {
       isLoading.value = false;
     }
   });
+};
+
+const onCreateNewCollectionSuccess = () => {
+  activeCreateNewCollectionDocumentPath.value = '';
+  getDocuments();
 };
 
 watch(() => route.params, () => {
@@ -400,9 +408,15 @@ watch(() => route.params, () => {
             </router-link>
           </template>
 
-          <template v-else>
-            -
-          </template>
+          <q-chip
+            label="New subcollection"
+            icon="sym_o_add"
+            size="sm"
+            color="blue-grey"
+            clickable
+            outline
+            @click="activeCreateNewCollectionDocumentPath = `${collectionPath}/${props.row.id}`"
+          />
         </q-td>
       </template>
 
@@ -469,6 +483,18 @@ watch(() => route.params, () => {
 
         <q-inner-loading :showing="isLoading" />
       </q-card>
+    </q-dialog>
+
+    <q-dialog
+      :model-value="!!activeCreateNewCollectionDocumentPath"
+      persistent
+      @update:model-value="activeCreateNewCollectionDocumentPath = $event ? activeCreateNewCollectionDocumentPath : ''"
+    >
+      <create-new-collection-form
+        :project-id="projectId"
+        :path-prefix="activeCreateNewCollectionDocumentPath"
+        @success="onCreateNewCollectionSuccess"
+      />
     </q-dialog>
   </q-page>
 </template>

@@ -4,8 +4,7 @@ import { toFirestoreDataTypeSchema } from 'app/src-electron/schemas';
 import {
   CollectionReferenceSchema, DataSchema, DocumentReferenceSchema,
 } from 'app/src-shared/schemas';
-import { IpcRendererEvent, ipcRenderer } from 'electron';
-import { FieldPath, FieldValue } from 'firebase-admin/firestore';
+import { FieldPath } from 'firebase-admin/firestore';
 import {
   ValiError,
   flatten,
@@ -57,6 +56,10 @@ const listDocuments: GApis['firestore']['document']['list'] = async (path, offse
   }
 };
 
+export const document = {
+  list: listDocuments,
+};
+
 export const documentCreate: FirestoreAdmin['document']['create'] = async (projectId, path, data) => {
   const db = firestore(projectId);
 
@@ -100,8 +103,4 @@ export const documentDeletes: FirestoreAdmin['document']['deletes'] = async (pro
   docRefs.forEach((docRef) => batch.delete(docRef));
 
   await batch.commit();
-};
-
-export const document = {
-  list: listDocuments,
 };

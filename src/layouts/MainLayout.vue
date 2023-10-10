@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useAsyncState } from '@vueuse/core';
 import { CollectionReferenceSchema } from 'app/src-shared/schemas';
+import CreateNewCollectionForm from 'components/CreateNewCollectionForm.vue';
 import { Output } from 'valibot';
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
@@ -20,6 +21,8 @@ const {
   const result = await GApis.projects.list();
   return (result.data.results || []);
 }, []);
+
+const activeCreateNewCollectionProjectId = ref('');
 
 const projectCollections = ref<Record<string, ProjectCollectionState>>({});
 
@@ -104,14 +107,31 @@ onMounted(() => {
             <q-expansion-item
               v-for="project in projects"
               :key="project.projectId!"
-              :label="project.displayName || project.name || project.projectId!"
-              icon="sym_o_local_fire_department"
               expand-separator
               dense
               :disable="projectCollections[project.projectId!]?.isLoading"
               :default-opened="$route.params.projectId === project.projectId"
               @show="onProjectExpand(project.projectId!)"
             >
+              <template #header>
+                <q-item-section avatar>
+                  <q-icon name="sym_o_local_fire_department" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ project.displayName || project.name || project.projectId! }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn
+                    icon="sym_o_refresh"
+                    round
+                    flat
+                    dense
+                    size="0.75rem"
+                    @click="listProjectCollections(project.projectId!)"
+                  />
+                </q-item-section>
+              </template>
+
               <q-card>
                 <q-card-section>
                   <q-list dense>
@@ -138,17 +158,6 @@ onMounted(() => {
                         <q-item-section>
                           <q-item-label>{{ collection.id }}</q-item-label>
                         </q-item-section>
-                        <!-- <q-item-section
-                          top
-                          side
-                        >
-                          <q-btn
-                            icon="sym_o_refresh"
-                            flat
-                            round
-                            size="sm"
-                          />
-                        </q-item-section> -->
                       </q-item>
                     </template>
 
@@ -162,6 +171,18 @@ onMounted(() => {
                         </q-item-section>
                       </q-item>
                     </template>
+
+                    <q-item
+                      clickable
+                      @click="activeCreateNewCollectionProjectId = project.projectId!"
+                    >
+                      <q-item-section avatar>
+                        <q-icon name="sym_o_add" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>Create new collection</q-item-label>
+                      </q-item-section>
+                    </q-item>
                   </q-list>
                 </q-card-section>
               </q-card>
@@ -195,5 +216,16 @@ onMounted(() => {
         :style-fn="(offset: number, height: number) => ({height: height - offset + 'px'})"
       />
     </q-page-container>
+
+    <q-dialog
+      :model-value="!!activeCreateNewCollectionProjectId"
+      persistent
+      @update:model-value="activeCreateNewCollectionProjectId = $event ? activeCreateNewCollectionProjectId : ''"
+    >
+      <create-new-collection-form
+        :project-id="activeCreateNewCollectionProjectId"
+        @success="activeCreateNewCollectionProjectId = ''"
+      />
+    </q-dialog>
   </q-layout>
 </template>
