@@ -72,32 +72,30 @@ export const SpecialDataSchema = union([
   GeoSchema,
 ]);
 
-type TInputDataSchema = {
-  [k: string]: Input<typeof SpecialDataSchema>
+type TInputDataSchema = Input<typeof SpecialDataSchema>
   | string
   | number
   | boolean
   | null
   | TInputDataSchema[]
-  | TInputDataSchema;
-};
+  | { [k: string]: TInputDataSchema };
 
-type TOutputDataSchema = {
-  [k: string]: Output<typeof SpecialDataSchema>
+type TOutputDataSchema = Output<typeof SpecialDataSchema>
   | string
   | number
   | boolean
   | null
   | TOutputDataSchema[]
-  | TOutputDataSchema;
-};
+  | { [k: string]: TOutputDataSchema };
 
-export const DataSchema: BaseSchema<TInputDataSchema, TOutputDataSchema> = record(recursive(() => union([
+export const DataTypeSchema: BaseSchema<TInputDataSchema, TOutputDataSchema> = recursive(() => union([
   ...SpecialDataSchema.union,
-  array(DataSchema),
+  array(DataTypeSchema),
   string(),
   number(),
   boolean(),
   nullType(),
-  DataSchema,
-])));
+  record(DataTypeSchema),
+]));
+
+export const DataSchema = record(DataTypeSchema);

@@ -13,7 +13,6 @@ const EMULATOR_APP_NAME = electronConfig.firebase.emulatorAppName;
 
 let activeApp: App;
 
-
 const setUpEmulatorEnv = () => {
   process.env.FIRESTORE_EMULATOR_HOST = `${EMULATOR_HOST}:${appConfig.firebase.emulator.port.firestore}`;
   process.env.FIREBASE_AUTH_EMULATOR_HOST = `${EMULATOR_HOST}:${appConfig.firebase.emulator.port.auth}`;
