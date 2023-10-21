@@ -7,6 +7,7 @@ import { Output } from 'valibot';
 import { onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { type firebase_v1beta1 as firebaseApis } from 'googleapis';
+import { usePubsubStore } from 'src/stores/pubsub-store';
 
 interface ProjectCollectionState {
   isLoading: boolean;
@@ -14,6 +15,8 @@ interface ProjectCollectionState {
   error: unknown;
   data: Output<typeof CollectionReferenceSchema>[];
 }
+
+const pubsub = usePubsubStore();
 
 const route = useRoute();
 
@@ -62,6 +65,10 @@ onMounted(() => {
   if (route.params.projectId) {
     listProjectCollections(route.params.projectId as string);
   }
+});
+
+pubsub.subscribe('project:refresh', async (projectId: string) => {
+  await listProjectCollections(projectId);
 });
 </script>
 
@@ -128,21 +135,42 @@ onMounted(() => {
                 <q-item-section>
                   <q-item-label>{{ project.displayName || project.name || project.projectId! }}</q-item-label>
                 </q-item-section>
-                <q-item-section side>
-                  <q-btn
-                    icon="sym_o_refresh"
-                    round
-                    flat
+
+                <q-menu
+                  touch-position
+                  context-menu
+                  transition-show="slide-down"
+                >
+                  <q-list
                     dense
-                    size="0.75rem"
-                    @click="listProjectCollections(project.projectId!)"
-                  />
-                </q-item-section>
+                    style="min-width: 100px"
+                  >
+                    <q-item
+                      v-close-popup
+                      clickable
+                      @click="pubsub.publish('project:refresh', project.projectId)"
+                    >
+                      <q-item-section>Refresh project</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
               </template>
 
               <q-card>
                 <q-card-section>
                   <q-list dense>
+                    <q-item
+                      clickable
+                      @click="activeCreateNewCollectionProjectId = project.projectId!"
+                    >
+                      <q-item-section avatar>
+                        <q-icon name="sym_o_add" />
+                      </q-item-section>
+                      <q-item-section>
+                        <q-item-label>Create new collection</q-item-label>
+                      </q-item-section>
+                    </q-item>
+
                     <template v-if="projectCollections[project.projectId!]?.isLoading">
                       <q-item
                         v-for="i in 5"
@@ -166,6 +194,25 @@ onMounted(() => {
                         <q-item-section>
                           <q-item-label>{{ collection.id }}</q-item-label>
                         </q-item-section>
+
+                        <q-menu
+                          touch-position
+                          context-menu
+                          transition-show="slide-down"
+                        >
+                          <q-list
+                            dense
+                            style="min-width: 100px"
+                          >
+                            <q-item
+                              v-close-popup
+                              clickable
+                              @click="pubsub.publish('collection:refresh', {projectId: project.projectId, collectionPath: collection.path})"
+                            >
+                              <q-item-section>Refresh collection</q-item-section>
+                            </q-item>
+                          </q-list>
+                        </q-menu>
                       </q-item>
                     </template>
 
@@ -179,18 +226,6 @@ onMounted(() => {
                         </q-item-section>
                       </q-item>
                     </template>
-
-                    <q-item
-                      clickable
-                      @click="activeCreateNewCollectionProjectId = project.projectId!"
-                    >
-                      <q-item-section avatar>
-                        <q-icon name="sym_o_add" />
-                      </q-item-section>
-                      <q-item-section>
-                        <q-item-label>Create new collection</q-item-label>
-                      </q-item-section>
-                    </q-item>
                   </q-list>
                 </q-card-section>
               </q-card>
@@ -237,3 +272,4 @@ onMounted(() => {
     </q-dialog>
   </q-layout>
 </template>
+src/stores/pubsub-store

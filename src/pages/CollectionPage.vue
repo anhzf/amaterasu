@@ -6,11 +6,14 @@ import { FieldPath, FieldValue } from 'firebase-admin/firestore';
 import { Dialog, Notify, QTableColumn } from 'quasar';
 import { tryJSONParse } from 'src/input-rules';
 import { FirestoreRecordSchema } from 'src/schemas';
+import { usePubsubStore } from 'src/stores/pubsub-store';
 import { parse } from 'valibot';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 
 const RESERVED_KEYS = ['id', '_subcollections'];
+
+const { subscribe } = usePubsubStore();
 
 const route = useRoute();
 
@@ -235,6 +238,12 @@ const onCreateNewCollectionSuccess = () => {
   activeCreateNewCollectionDocumentPath.value = '';
   getDocuments();
 };
+
+subscribe('collection:refresh', (payload: {projectId: string, collectionPath: string}) => {
+  if (payload.projectId === projectId.value && payload.collectionPath === collectionPath.value) {
+    getDocuments();
+  }
+});
 
 watch(() => route.params, () => {
   getDocuments();
@@ -519,3 +528,4 @@ watch(() => route.params, () => {
   }
 }
 </style>
+src/stores/pubsub-store
