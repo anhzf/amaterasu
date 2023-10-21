@@ -77,5 +77,3 @@ export const toFirestoreDataTypeSchema: BaseSchema<TInputDataTypeSchema, TOutput
   transform(undefinedType(), () => FieldValue.delete()),
   record(toFirestoreDataTypeSchema),
 ]));
-
-// export const toFirestoreDataTypeSchema = recursive(() => special());

@@ -1,6 +1,7 @@
 import {
   app, BrowserWindow,
   ipcMain,
+  Menu,
 } from 'electron';
 import os from 'os';
 import path from 'path';
@@ -25,6 +26,13 @@ function createWindow() {
       sandbox: false,
     },
   });
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate([
+    {
+      label: 'Reload',
+      click: () => mainWindow?.reload(),
+    },
+  ]));
 
   mainWindow.loadURL(process.env.APP_URL);
 

@@ -1,9 +1,11 @@
+import { FIRESTORE_BATCH_LIMIT } from 'app/src-electron/constants';
 import { FirestoreAdmin, GApis } from 'app/src-electron/interfaces';
 import { DEFAULT_PROJECT_ID, firestore } from 'app/src-electron/lib/firebase-services';
 import { toFirestoreDataTypeSchema } from 'app/src-electron/schemas';
 import {
   CollectionReferenceSchema, DataSchema, DocumentReferenceSchema,
 } from 'app/src-shared/schemas';
+import { splitChunks } from 'app/src-shared/utils/array';
 import { FieldPath } from 'firebase-admin/firestore';
 import {
   ValiError,
@@ -63,17 +65,20 @@ export const document = {
 export const documentCreate: FirestoreAdmin['document']['create'] = async (projectId, path, data) => {
   const db = firestore(projectId);
 
-  const batch = db.batch();
+  await Promise.allSettled(splitChunks(data, FIRESTORE_BATCH_LIMIT)
+    .map(async (chunk) => {
+      const batch = db.batch();
 
-  data.forEach((el) => {
-    const parsed = parse(record(toFirestoreDataTypeSchema), el);
-    const docRef = typeof parsed.id === 'string'
-      ? db.collection(path).doc(parsed.id)
-      : db.collection(path).doc();
-    batch.create(docRef, parsed);
-  });
+      chunk.forEach((el) => {
+        const parsed = parse(record(toFirestoreDataTypeSchema), el);
+        const docRef = typeof parsed.id === 'string'
+          ? db.collection(path).doc(parsed.id)
+          : db.collection(path).doc();
+        batch.create(docRef, parsed);
+      });
 
-  await batch.commit();
+      await batch.commit();
+    }));
 };
 
 export const documentUpdate: FirestoreAdmin['document']['update'] = async (projectId, path, updates) => {
