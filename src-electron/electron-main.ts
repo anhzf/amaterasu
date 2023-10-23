@@ -1,3 +1,4 @@
+import windowCleanup from 'app/src-electron/window-cleanup';
 import {
   app, BrowserWindow,
   ipcMain,
@@ -48,6 +49,7 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = undefined;
+    windowCleanup.forEach((cleanup) => cleanup());
   });
 }
 

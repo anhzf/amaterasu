@@ -1,14 +1,19 @@
 <script lang="ts" setup>
 import { useAsyncState } from '@vueuse/core';
 import { ItemOfArray } from 'app/src-shared/utils/type';
+import { DataSchema } from 'app/src-shared/schemas';
 import CreateNewCollectionForm from 'components/CreateNewCollectionForm.vue';
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
-import { Dialog, Notify, QTableColumn } from 'quasar';
+import {
+  Dialog, Notify, QTable, QTableColumn, QTableProps,
+} from 'quasar';
 import { tryJSONParse } from 'src/input-rules';
 import { FirestoreRecordSchema } from 'src/schemas';
 import { usePubsubStore } from 'src/stores/pubsub-store';
-import { parse } from 'valibot';
-import { computed, ref, watch } from 'vue';
+import { Output, parse } from 'valibot';
+import {
+  computed, onMounted, ref, watch,
+} from 'vue';
 import { useRoute } from 'vue-router';
 
 const RESERVED_KEYS = ['id', '_subcollections'];
@@ -20,16 +25,31 @@ const route = useRoute();
 const projectId = computed(() => route.params.projectId as string);
 const collectionPath = computed(() => route.params.collectionPath as string);
 
-const {
-  state: data, isLoading, error, execute: getDocuments,
-} = useAsyncState(async () => {
-  const result = await GApis.firestore.document.list(collectionPath.value, '', projectId.value);
-  return result.data.map((item) => ({
-    ...item.data,
-    id: item.ref.id,
-    _subcollections: item.subcollections,
-  }));
-}, []);
+const theTable = ref<QTable>();
+
+const snapshotListenerUnsubs: (() => void)[] = [];
+
+const pagination = ref<NonNullable<QTableProps['pagination']>>({
+  rowsPerPage: 10,
+});
+const data = ref<Output<typeof DataSchema>[]>([]);
+
+const isLoading = ref(false);
+
+const error = ref();
+
+const getDocuments = () => { /*  */ };
+
+// const {
+//   state: data, isLoading, error, execute: getDocuments,
+// } = useAsyncState(async () => {
+//   const result = await GApis.firestore.document.list(collectionPath.value, '', projectId.value);
+//   return result.data.map((item) => ({
+//     ...item.data,
+//     id: item.ref.id,
+//     _subcollections: item.subcollections,
+//   }));
+// }, []);
 
 const cols = computed<QTableColumn<ItemOfArray<typeof data.value>>[]>(() => [
   {
@@ -115,7 +135,7 @@ const onFieldEditSave = async (id: string, updates: [FieldPath, FieldValue]) => 
 
     await FirestoreAdmin.document.update(projectId.value, [collectionPath.value, id].join('/'), JSON.parse(JSON.stringify(updates)));
 
-    getDocuments();
+    // getDocuments();
   } finally {
     isLoading.value = false;
   }
@@ -129,7 +149,7 @@ const onCreateDocumentSubmit = async () => {
     const payload = Array.isArray(raw) ? raw.map((el) => parse(FirestoreRecordSchema, el)) : [parse(FirestoreRecordSchema, raw)];
     await FirestoreAdmin.document.create(projectId.value, collectionPath.value, payload);
 
-    getDocuments();
+    // getDocuments();
     isCreateDocumentDialogOpen.value = false;
     createDocumentField.value = '';
   } finally {
@@ -162,7 +182,7 @@ const onAddColumnClick = async (row: (typeof data.value)[number]) => {
           Object.entries(payload).flat() as [FieldPath, FieldValue, ...any[]],
         );
 
-        getDocuments();
+        // getDocuments();
       } finally {
         isLoading.value = false;
       }
@@ -206,7 +226,7 @@ const onRemoveColumnClick = async (row: (typeof data.value)[number]) => {
               payload,
             );
 
-            getDocuments();
+            // getDocuments();
           } finally {
             isLoading.value = false;
           }
@@ -227,7 +247,7 @@ const onDeleteDocumentsClick = () => {
       await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
 
       selected.value = [];
-      getDocuments();
+      // getDocuments();
     } finally {
       isLoading.value = false;
     }
@@ -236,17 +256,69 @@ const onDeleteDocumentsClick = () => {
 
 const onCreateNewCollectionSuccess = () => {
   activeCreateNewCollectionDocumentPath.value = '';
-  getDocuments();
+  // getDocuments();
 };
+
+const onTableRequest: QTableProps['onRequest'] = async (req) => {
+  isLoading.value = true;
+
+  // eslint-disable-next-line camelcase
+  const { getCount, unsubscribe } = await __experimental_FirestoreAdmin__.documentsListen({
+    projectId: projectId.value,
+    path: collectionPath.value,
+    query: {
+      orderBy: req.pagination.sortBy ? [
+        [req.pagination.sortBy, req.pagination.descending ? 'desc' : 'asc'],
+      ] : undefined,
+      startAfter: (data.value.at(-1) && req.pagination.sortBy && (data.value.at(-1)![req.pagination.sortBy] !== undefined))
+        ? [data.value.at(-1)![req.pagination.sortBy]]
+        : undefined,
+      limit: req.pagination.rowsPerPage,
+    },
+    onSnapshot: (docs) => {
+      isLoading.value = true;
+
+      getCount()
+        .then((count) => {
+          pagination.value = {
+            page: req.pagination.page,
+            rowsPerPage: req.pagination.rowsPerPage,
+            sortBy: req.pagination.sortBy,
+            descending: req.pagination.descending,
+            rowsNumber: count,
+          };
+        })
+        .catch((err) => {
+          error.value = err;
+        })
+        .finally(() => {
+          data.value = docs;
+          isLoading.value = false;
+        });
+    },
+    onError: (err) => {
+      error.value = err;
+    },
+  });
+
+  snapshotListenerUnsubs.forEach((unsub) => unsub());
+  snapshotListenerUnsubs.push(unsubscribe);
+};
+
+onMounted(() => {
+  theTable.value?.requestServerInteraction();
+});
 
 subscribe('collection:refresh', (payload: {projectId: string, collectionPath: string}) => {
   if (payload.projectId === projectId.value && payload.collectionPath === collectionPath.value) {
-    getDocuments();
+    // getDocuments();
+    theTable.value?.requestServerInteraction();
   }
 });
 
 watch(() => route.params, () => {
-  getDocuments();
+  // getDocuments();
+  theTable.value?.requestServerInteraction();
   selected.value = [];
 });
 </script>
@@ -272,17 +344,18 @@ watch(() => route.params, () => {
     </q-banner>
 
     <q-table
+      ref="theTable"
       v-model:selected="selected"
+      v-model:pagination="pagination"
       :columns="cols"
       :rows="data"
+      row-key="id"
       selection="multiple"
       :loading="isLoading"
       dense
       wrap-cells
       card-class="full-width max-h-full"
-      :pagination="{
-        rowsPerPage: 10,
-      }"
+      @request="onTableRequest"
     >
       <template #top-left>
         <q-breadcrumbs>
@@ -345,7 +418,7 @@ watch(() => route.params, () => {
             flat
             round
             :disable="isLoading"
-            @click="getDocuments()"
+            @click="theTable?.requestServerInteraction()"
           />
         </div>
       </template>

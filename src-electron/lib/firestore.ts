@@ -2,12 +2,19 @@ import { FIRESTORE_BATCH_LIMIT } from 'app/src-electron/constants';
 import { FirestoreAdmin, GApis } from 'app/src-electron/interfaces';
 import { DEFAULT_PROJECT_ID, firestore } from 'app/src-electron/lib/firebase-services';
 import { toFirestoreDataTypeSchema } from 'app/src-electron/schemas';
+import windowCleanup from 'app/src-electron/window-cleanup';
 import {
-  CollectionReferenceSchema, DataSchema, DocumentReferenceSchema,
+  CollectionReferenceSchema, DataSchema, DocumentReferenceSchema, JSONReferenceSchema,
 } from 'app/src-shared/schemas';
 import { splitChunks } from 'app/src-shared/utils/array';
-import { FieldPath } from 'firebase-admin/firestore';
 import {
+  contextBridge,
+} from 'electron';
+import {
+  FieldPath, OrderByDirection, Query, WhereFilterOp,
+} from 'firebase-admin/firestore';
+import {
+  Output,
   ValiError,
   flatten,
   parse,
@@ -109,3 +116,129 @@ export const documentDeletes: FirestoreAdmin['document']['deletes'] = async (pro
 
   await batch.commit();
 };
+
+interface IQuery {
+  where?: [
+    FieldPath | string,
+    WhereFilterOp,
+    any,
+  ][];
+  orderBy?: [
+    FieldPath | string,
+    OrderByDirection,
+  ][];
+  startAt?: any[] | Output<typeof JSONReferenceSchema>;
+  startAfter?: any[] | Output<typeof JSONReferenceSchema>;
+  endAt?: any[] | Output<typeof JSONReferenceSchema>;
+  endBefore?: any[] | Output<typeof JSONReferenceSchema>;
+  limit?: number;
+  limitToLast?: number;
+}
+
+interface DocumentsListenOptions {
+  projectId: string;
+  path: string;
+  query?: IQuery;
+  onSnapshot: (docs: Output<typeof DataSchema>[]) => void;
+  onError?: (err: Error) => void;
+}
+
+// eslint-disable-next-line camelcase
+export const __experimental_FirestoreAdmin__ = {
+  documentsListen: async ({
+    projectId,
+    path,
+    query,
+    onSnapshot,
+    onError = console.error,
+  }: DocumentsListenOptions) => {
+    const db = firestore(projectId);
+    const root = db.collection(path)
+      .withConverter<any>({
+        fromFirestore(snapshot) {
+          return parse(DataSchema, snapshot.data());
+        },
+        toFirestore(data) {
+          return parse(record(toFirestoreDataTypeSchema), data);
+        },
+      });
+
+    let q: Query = root;
+
+    if (query?.where) {
+      query.where.forEach((where) => {
+        q = q.where(...where);
+      });
+    }
+
+    if (query?.orderBy) {
+      query.orderBy.forEach((orderBy) => {
+        q = q.orderBy(...orderBy);
+      });
+    }
+
+    if (query?.startAt) {
+      q = Array.isArray(query.startAt)
+        ? q.startAt(...query.startAt)
+        : q.startAt(await db.doc(query.startAt.__ref__).get());
+    }
+
+    if (query?.startAfter) {
+      q = Array.isArray(query.startAfter)
+        ? q.startAfter(...query.startAfter)
+        : q.startAfter(await db.doc(query.startAfter.__ref__).get());
+    }
+
+    if (query?.endAt) {
+      q = Array.isArray(query.endAt)
+        ? q.endAt(...query.endAt)
+        : q.endAt(await db.doc(query.endAt.__ref__).get());
+    }
+
+    if (query?.endBefore) {
+      q = Array.isArray(query.endBefore)
+        ? q.endBefore(...query.endBefore)
+        : q.endBefore(await db.doc(query.endBefore.__ref__).get());
+    }
+
+    if (query?.limit) {
+      q = q.limit(query.limit);
+    }
+
+    if (query?.limitToLast) {
+      q = q.limitToLast(query.limitToLast);
+    }
+
+    const unsubscribe = q.onSnapshot(async (snapshot) => {
+      onSnapshot(await Promise.all(snapshot.docs.map(async (doc) => ({
+        ...doc.data(),
+        id: doc.id,
+        _subcollections: (await doc.ref.listCollections()).map((el) => parse(CollectionReferenceSchema, el)),
+      }))));
+    }, onError);
+
+    windowCleanup.push(unsubscribe);
+
+    const getCount = async () => {
+      /**
+       * Rewrite query due to Aggregation limitation.
+       * @see https://firebase.google.com/docs/firestore/query-data/aggregation-queries#limitations
+       */
+      let getCountQ: Query = root;
+
+      if (query?.where) {
+        query.where.forEach((where) => {
+          getCountQ = q.where(...where);
+        });
+      }
+
+      const snapshot = await getCountQ.count().get();
+      // const snapshot = await q.count().get();
+      return snapshot.data().count;
+    };
+
+    return { getCount, unsubscribe };
+  },
+};
+
+contextBridge.exposeInMainWorld('__experimental_FirestoreAdmin__', __experimental_FirestoreAdmin__);

@@ -72,7 +72,7 @@ export const SpecialDataSchema = union([
   GeoSchema,
 ]);
 
-type TInputDataSchema = Input<typeof SpecialDataSchema>
+export type TInputDataSchema = Input<typeof SpecialDataSchema>
   | string
   | number
   | boolean
@@ -80,7 +80,7 @@ type TInputDataSchema = Input<typeof SpecialDataSchema>
   | TInputDataSchema[]
   | { [k: string]: TInputDataSchema };
 
-type TOutputDataSchema = Output<typeof SpecialDataSchema>
+export type TOutputDataSchema = Output<typeof SpecialDataSchema>
   | string
   | number
   | boolean
