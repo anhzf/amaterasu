@@ -38,19 +38,6 @@ const isLoading = ref(false);
 
 const error = ref();
 
-const getDocuments = () => { /*  */ };
-
-// const {
-//   state: data, isLoading, error, execute: getDocuments,
-// } = useAsyncState(async () => {
-//   const result = await GApis.firestore.document.list(collectionPath.value, '', projectId.value);
-//   return result.data.map((item) => ({
-//     ...item.data,
-//     id: item.ref.id,
-//     _subcollections: item.subcollections,
-//   }));
-// }, []);
-
 const cols = computed<QTableColumn<ItemOfArray<typeof data.value>>[]>(() => [
   {
     name: 'id',
@@ -134,8 +121,6 @@ const onFieldEditSave = async (id: string, updates: [FieldPath, FieldValue]) => 
     isLoading.value = true;
 
     await FirestoreAdmin.document.update(projectId.value, [collectionPath.value, id].join('/'), JSON.parse(JSON.stringify(updates)));
-
-    // getDocuments();
   } finally {
     isLoading.value = false;
   }
@@ -149,7 +134,6 @@ const onCreateDocumentSubmit = async () => {
     const payload = Array.isArray(raw) ? raw.map((el) => parse(FirestoreRecordSchema, el)) : [parse(FirestoreRecordSchema, raw)];
     await FirestoreAdmin.document.create(projectId.value, collectionPath.value, payload);
 
-    // getDocuments();
     isCreateDocumentDialogOpen.value = false;
     createDocumentField.value = '';
   } finally {
@@ -181,8 +165,6 @@ const onAddColumnClick = async (row: (typeof data.value)[number]) => {
           [collectionPath.value, row.id].join('/'),
           Object.entries(payload).flat() as [FieldPath, FieldValue, ...any[]],
         );
-
-        // getDocuments();
       } finally {
         isLoading.value = false;
       }
@@ -225,8 +207,6 @@ const onRemoveColumnClick = async (row: (typeof data.value)[number]) => {
               [collectionPath.value, row.id].join('/'),
               payload,
             );
-
-            // getDocuments();
           } finally {
             isLoading.value = false;
           }
@@ -240,14 +220,30 @@ const onDeleteDocumentsClick = () => {
     message: selected.value.map((item) => item.id).join(', '),
     persistent: true,
     cancel: true,
-  }).onOk(async () => {
+    options: {
+      type: 'checkbox',
+      model: [],
+      items: [
+        {
+          label: 'Delete subcollections (recursive)',
+          value: 'recursive',
+        },
+      ],
+    },
+  }).onOk(async (options) => {
     try {
       isLoading.value = true;
 
-      await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
+      const isRecursive = options.includes('recursive');
+
+      if (isRecursive) {
+        await Promise.all(selected.value.map((item) => FirestoreAdmin
+          .recursiveDeletes(projectId.value, [collectionPath.value, item.id].join('/'))));
+      } else {
+        await FirestoreAdmin.document.deletes(projectId.value, ...selected.value.map((item) => [collectionPath.value, item.id].join('/')));
+      }
 
       selected.value = [];
-      // getDocuments();
     } finally {
       isLoading.value = false;
     }
@@ -256,7 +252,6 @@ const onDeleteDocumentsClick = () => {
 
 const onCreateNewCollectionSuccess = () => {
   activeCreateNewCollectionDocumentPath.value = '';
-  // getDocuments();
 };
 
 const onTableRequest: QTableProps['onRequest'] = async (req) => {
@@ -311,13 +306,11 @@ onMounted(() => {
 
 subscribe('collection:refresh', (payload: {projectId: string, collectionPath: string}) => {
   if (payload.projectId === projectId.value && payload.collectionPath === collectionPath.value) {
-    // getDocuments();
     theTable.value?.requestServerInteraction();
   }
 });
 
 watch(() => route.params, () => {
-  // getDocuments();
   theTable.value?.requestServerInteraction();
   selected.value = [];
 });

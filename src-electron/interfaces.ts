@@ -40,4 +40,5 @@ export interface FirestoreAdmin {
     update: (projectId: string, path: string, updates: [FieldPath, FieldValue, ...any]) => Promise<void>;
     deletes: (projectId: string, ...paths: string[]) => Promise<void>;
   };
+  recursiveDeletes: (projectId: string, path: string) => Promise<void>;
 }

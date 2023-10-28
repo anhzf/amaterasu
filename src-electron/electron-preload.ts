@@ -3,7 +3,11 @@ import { contextBridge } from 'electron';
 import { google } from 'googleapis';
 import { ElectronUtils, FirestoreAdmin, GApis } from './interfaces';
 import {
-  documentCreate, documentUpdate, documentDeletes, collection, document,
+  collection, document,
+  documentCreate,
+  documentDeletes,
+  documentUpdate,
+  recursiveDeletes,
 } from './lib/firestore';
 
 google.options({
@@ -28,6 +32,7 @@ contextBridge.exposeInMainWorld('FirestoreAdmin', <FirestoreAdmin>{
     create: documentCreate,
     deletes: documentDeletes,
   },
+  recursiveDeletes,
 });
 
 contextBridge.exposeInMainWorld('ElectronUtils', <ElectronUtils>{

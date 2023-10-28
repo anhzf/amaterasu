@@ -117,6 +117,12 @@ export const documentDeletes: FirestoreAdmin['document']['deletes'] = async (pro
   await batch.commit();
 };
 
+export const recursiveDeletes: FirestoreAdmin['recursiveDeletes'] = async (projectId, path) => {
+  const db = firestore(projectId);
+  const isDoc = path.split('/').length % 2 === 0;
+  await db.recursiveDelete(isDoc ? db.doc(path) : db.collection(path));
+};
+
 interface IQuery {
   where?: [
     FieldPath | string,
