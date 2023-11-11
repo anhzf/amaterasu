@@ -7,11 +7,11 @@ import {
   Input, Output,
   array, boolean,
   coerce, literal,
-  nullType, number,
+  null_, number,
   object,
   record, recursive, string,
   transform,
-  undefinedType,
+  undefined_,
   union,
 } from 'valibot';
 
@@ -68,12 +68,12 @@ type TOutputDataTypeSchema = Output<typeof toFirestoreSpecialDataSchema>
   | { [k: string]: TOutputDataTypeSchema };
 
 export const toFirestoreDataTypeSchema: BaseSchema<TInputDataTypeSchema, TOutputDataTypeSchema> = recursive(() => union([
-  ...toFirestoreSpecialDataSchema.union,
+  ...toFirestoreSpecialDataSchema.options,
   array(toFirestoreDataTypeSchema),
   string(),
   number(),
   boolean(),
-  nullType(),
-  transform(undefinedType(), () => FieldValue.delete()),
+  null_(),
+  transform(undefined_(), () => FieldValue.delete()),
   record(toFirestoreDataTypeSchema),
 ]));

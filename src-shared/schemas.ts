@@ -1,5 +1,5 @@
 import {
-  BaseSchema, Input, Output, array, boolean, nullType, number, object, record, recursive, string, transform, union,
+  BaseSchema, Input, Output, array, boolean, null_, number, object, record, recursive, string, transform, union,
 } from 'valibot';
 
 const SECONDS_IN_MILLISECONDS = 1000;
@@ -89,12 +89,12 @@ export type TOutputDataSchema = Output<typeof SpecialDataSchema>
   | { [k: string]: TOutputDataSchema };
 
 export const DataTypeSchema: BaseSchema<TInputDataSchema, TOutputDataSchema> = recursive(() => union([
-  ...SpecialDataSchema.union,
+  ...SpecialDataSchema.options,
   array(DataTypeSchema),
   string(),
   number(),
   boolean(),
-  nullType(),
+  null_(),
   record(DataTypeSchema),
 ]));
 
