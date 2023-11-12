@@ -264,7 +264,7 @@ const onTableRequest: QTableProps['onRequest'] = async (req) => {
       orderBy: req.pagination.sortBy ? [
         [req.pagination.sortBy, req.pagination.descending ? 'desc' : 'asc'],
       ] : undefined,
-      startAfter: (data.value.at(-1) && req.pagination.sortBy && (data.value.at(-1)![req.pagination.sortBy] !== undefined))
+      startAfter: (req.pagination.page > 1 && data.value.at(-1) && req.pagination.sortBy && (data.value.at(-1)![req.pagination.sortBy] !== undefined))
         ? [parse(FirestoreDataSchema, data.value.at(-1)![req.pagination.sortBy])]
         : undefined,
       limit: req.pagination.rowsPerPage,
