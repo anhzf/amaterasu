@@ -1,14 +1,13 @@
 <script lang="ts" setup>
-import { useAsyncState } from '@vueuse/core';
-import { ItemOfArray } from 'app/src-shared/utils/type';
 import { DataSchema } from 'app/src-shared/schemas';
+import { ItemOfArray } from 'app/src-shared/utils/type';
 import CreateNewCollectionForm from 'components/CreateNewCollectionForm.vue';
 import { FieldPath, FieldValue } from 'firebase-admin/firestore';
 import {
   Dialog, Notify, QTable, QTableColumn, QTableProps,
 } from 'quasar';
 import { tryJSONParse } from 'src/input-rules';
-import { FirestoreRecordSchema } from 'src/schemas';
+import { FirestoreDataSchema, FirestoreRecordSchema } from 'src/schemas';
 import { usePubsubStore } from 'src/stores/pubsub-store';
 import { Output, parse } from 'valibot';
 import {
@@ -266,7 +265,7 @@ const onTableRequest: QTableProps['onRequest'] = async (req) => {
         [req.pagination.sortBy, req.pagination.descending ? 'desc' : 'asc'],
       ] : undefined,
       startAfter: (data.value.at(-1) && req.pagination.sortBy && (data.value.at(-1)![req.pagination.sortBy] !== undefined))
-        ? [data.value.at(-1)![req.pagination.sortBy]]
+        ? [parse(FirestoreDataSchema, data.value.at(-1)![req.pagination.sortBy])]
         : undefined,
       limit: req.pagination.rowsPerPage,
     },

@@ -185,25 +185,25 @@ export const __experimental_FirestoreAdmin__ = {
 
     if (query?.startAt) {
       q = Array.isArray(query.startAt)
-        ? q.startAt(...query.startAt)
+        ? q.startAt(...query.startAt.map((el) => parse(toFirestoreDataTypeSchema, el)))
         : q.startAt(await db.doc(query.startAt.__ref__).get());
     }
 
     if (query?.startAfter) {
       q = Array.isArray(query.startAfter)
-        ? q.startAfter(...query.startAfter)
+        ? q.startAfter(...query.startAfter.map((el) => parse(toFirestoreDataTypeSchema, el)))
         : q.startAfter(await db.doc(query.startAfter.__ref__).get());
     }
 
     if (query?.endAt) {
       q = Array.isArray(query.endAt)
-        ? q.endAt(...query.endAt)
+        ? q.endAt(...query.endAt.map((el) => parse(toFirestoreDataTypeSchema, el)))
         : q.endAt(await db.doc(query.endAt.__ref__).get());
     }
 
     if (query?.endBefore) {
       q = Array.isArray(query.endBefore)
-        ? q.endBefore(...query.endBefore)
+        ? q.endBefore(...query.endBefore.map((el) => parse(toFirestoreDataTypeSchema, el)))
         : q.endBefore(await db.doc(query.endBefore.__ref__).get());
     }
 
