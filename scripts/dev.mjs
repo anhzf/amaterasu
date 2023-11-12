@@ -4,11 +4,11 @@ try {
   await con([
     {
       name: 'vue-devtools',
-      command: 'pnpm vue-devtools',
+      command: 'npx vue-devtools',
     },
     {
       name: 'app',
-      command: 'quasar dev -m electron',
+      command: 'npm run dev',
     },
   ], {
     killOthers: ['failure', 'success'],
